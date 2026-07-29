@@ -1,5 +1,9 @@
 using Infraestructura;
 using Microsoft.EntityFrameworkCore;
+using System.Text;
+using Aplicacion;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -10,6 +14,33 @@ builder.Services.AddDbContext<MesaSitecDbContext>(options =>
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+// Configuracion del JWT leida desde appsettings.json
+var jwtSecreto = builder.Configuration["Jwt:Secreto"]!;
+var jwtEmisor = builder.Configuration["Jwt:Emisor"]!;
+var jwtAudiencia = builder.Configuration["Jwt:Audiencia"]!;
+var jwtExpira = int.Parse(builder.Configuration["Jwt:ExpiraEnSegundos"]!);
+
+builder.Services.AddSingleton(new GeneradorToken(
+    jwtSecreto, jwtEmisor, jwtAudiencia, jwtExpira));
+
+// Le enseña a la API a validar el token que llega en cada peticion
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtEmisor,
+            ValidAudience = jwtAudiencia,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecreto))
+        };
+    });
+
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -23,6 +54,8 @@ using (var scope = app.Services.CreateScope())
 
 app.UseSwagger();
 app.UseSwaggerUI();
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

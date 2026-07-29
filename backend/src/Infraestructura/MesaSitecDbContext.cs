@@ -22,7 +22,7 @@ public class MesaSitecDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<Solicitud>()
-            .HasIndex(s => s.Codigo)
+            .HasIndex(s => new { s.TenantId, s.Codigo })
             .IsUnique();
     }
 }

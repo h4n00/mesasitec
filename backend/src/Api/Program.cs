@@ -1,25 +1,31 @@
+using Infraestructura;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Conexión a SQLite: archivo mesasitec.db en la carpeta del proyecto
+builder.Services.AddDbContext<MesaSitecDbContext>(options =>
+    options.UseSqlite("Data Source=mesasitec.db"));
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+// Crea la base de datos automáticamente si no existe
+using (var scope = app.Services.CreateScope())
 {
-    app.UseSwagger();
-    app.UseSwaggerUI();
+    var db = scope.ServiceProvider.GetRequiredService<MesaSitecDbContext>();
+    db.Database.EnsureCreated();
 }
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
+app.UseSwagger();
+app.UseSwaggerUI();
 
 app.MapControllers();
+
+// Endpoint de salud, sin autenticación (requisito del enunciado)
+app.MapGet("/health", () => Results.Ok(new { estado = "ok" }));
 
 app.Run();

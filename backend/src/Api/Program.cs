@@ -18,6 +18,7 @@ using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<MesaSitecDbContext>();
     db.Database.EnsureCreated();
+    SembradorDatos.Sembrar(db);
 }
 
 app.UseSwagger();

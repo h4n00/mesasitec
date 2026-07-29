@@ -29,4 +29,5 @@ app.MapControllers();
 // Endpoint de salud, sin autenticación (requisito del enunciado)
 app.MapGet("/health", () => Results.Ok(new { estado = "ok" }));
 
+
 app.Run();

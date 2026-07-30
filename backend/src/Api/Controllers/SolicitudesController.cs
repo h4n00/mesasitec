@@ -309,6 +309,93 @@ public class SolicitudesController : ControllerBase
         return Ok(dto);
     }
 
+    [HttpPost("{id}/transiciones")]
+    public async Task<IActionResult> Transicion(Guid id, [FromBody] TransicionRequest peticion)
+    {
+        var actual = new UsuarioActual(User);
+        var ahora = DateTime.UtcNow;
+
+        var solicitud = await _db.Solicitudes
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == actual.TenantId);
+
+        if (solicitud == null)
+            return Errores.NoEncontrado();
+
+        // El solicitante no debe saber que existen las ajenas
+        if (actual.EsSolicitante && solicitud.SolicitanteId != actual.Id)
+            return Errores.NoEncontrado();
+
+        var accion = (peticion.Accion ?? "").ToLower();
+
+        // RN-03: permisos por rol para cada accion
+        if (!PuedeEjecutar(accion, actual))
+            return Errores.NoPermitido();
+
+        // RN-02: la transicion debe existir en la maquina de estados
+        var destino = MaquinaEstados.ObtenerDestino(solicitud.Estado, accion);
+        if (destino == null)
+            return Errores.TransicionInvalida();
+
+        // RN-05: validar el agente al asignar
+        if (accion == "asignar")
+        {
+            if (!peticion.AgenteId.HasValue)
+                return Errores.AgenteInvalido();
+
+            var agente = await _db.Usuarios.FirstOrDefaultAsync(u =>
+                u.Id == peticion.AgenteId.Value &&
+                u.TenantId == actual.TenantId &&
+                u.Activo &&
+                (u.Rol == Rol.Agente || u.Rol == Rol.Admin));
+
+            if (agente == null)
+                return Errores.AgenteInvalido();
+
+            solicitud.AgenteId = agente.Id;
+        }
+
+        // RN-06: motivo obligatorio con longitud minima
+        if (accion == "resolver")
+        {
+            var motivo = peticion.Motivo ?? "";
+            if (motivo.Trim().Length < 20)
+                return Errores.MotivoRequerido();
+
+            solicitud.MotivoResolucion = motivo;
+            solicitud.FechaResolucion = ahora;
+        }
+
+        if (accion == "cancelar")
+        {
+            var motivo = peticion.Motivo ?? "";
+            if (motivo.Trim().Length < 10)
+                return Errores.MotivoRequerido();
+
+            solicitud.MotivoCancelacion = motivo;
+        }
+
+        solicitud.Estado = destino.Value;
+        await _db.SaveChangesAsync();
+
+        var dto = await ArmarDetalle(solicitud, actual.TenantId, ahora);
+        return Ok(dto);
+    }
+
+    // Tabla de permisos de RN-03
+    private static bool PuedeEjecutar(string accion, UsuarioActual actual)
+    {
+        return accion switch
+        {
+            "asignar" => actual.EsAdmin || actual.EsAgente,
+            "iniciar" => actual.EsAdmin || actual.EsAgente,
+            "resolver" => actual.EsAdmin || actual.EsAgente,
+            "reabrir" => actual.EsAdmin || actual.EsAgente,
+            "cerrar" => true,   // los tres roles pueden cerrar
+            "cancelar" => actual.EsAdmin,
+            _ => false
+        };
+    }
+
     private static IQueryable<Solicitud> Ordenar(IQueryable<Solicitud> consulta, string sort)
     {
         return sort switch

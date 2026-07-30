@@ -3,6 +3,8 @@ using Aplicacion;
 using Infraestructura;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Api.Controllers;
 
@@ -57,5 +59,31 @@ public class AuthController : ControllerBase
         };
 
         return Ok(respuesta);
+    }
+    [HttpGet("/api/v1/me")]
+    [Authorize]
+    public async Task<IActionResult> Me()
+    {
+        // El "sub" del token trae el id del usuario autenticado
+        var idTexto = User.FindFirst("sub")?.Value;
+
+        if (!Guid.TryParse(idTexto, out var usuarioId))
+            return Unauthorized();
+
+        var usuario = await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId);
+        if (usuario == null)
+            return Unauthorized();
+
+        var tenant = await _db.Tenants.FirstAsync(t => t.Id == usuario.TenantId);
+
+        return Ok(new UsuarioDto
+        {
+            Id = usuario.Id,
+            Nombre = usuario.Nombre,
+            Email = usuario.Email,
+            Rol = usuario.Rol.ToString(),
+            TenantId = usuario.TenantId,
+            TenantNombre = tenant.Nombre
+        });
     }
 }

@@ -250,6 +250,65 @@ public class SolicitudesController : ControllerBase
         return prefijo + siguiente.ToString("D5");
     }
 
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Editar(Guid id, [FromBody] EditarSolicitudRequest peticion)
+    {
+        var actual = new UsuarioActual(User);
+        var ahora = DateTime.UtcNow;
+
+        var solicitud = await _db.Solicitudes
+            .FirstOrDefaultAsync(s => s.Id == id && s.TenantId == actual.TenantId);
+
+        if (solicitud == null)
+            return Errores.NoEncontrado();
+
+        // RN-03: el solicitante solo edita las propias y solo en estado Nueva
+        if (actual.EsSolicitante)
+        {
+            if (solicitud.SolicitanteId != actual.Id)
+                return Errores.NoEncontrado();
+
+            if (solicitud.Estado != Estado.Nueva)
+                return Errores.NoPermitido();
+        }
+
+        if (string.IsNullOrWhiteSpace(peticion.Titulo) ||
+            string.IsNullOrWhiteSpace(peticion.Descripcion))
+            return Errores.Validacion();
+
+        var categoria = await _db.Categorias.FirstOrDefaultAsync(c =>
+            c.Id == peticion.CategoriaId &&
+            c.TenantId == actual.TenantId &&
+            c.Activo);
+
+        if (categoria == null)
+            return Errores.Validacion();
+
+        // RN-04: si cambia la categoria o la prioridad, se recalcula el SLA
+        var cambioSla = solicitud.CategoriaId != categoria.Id ||
+                        solicitud.Prioridad != peticion.Prioridad;
+
+        solicitud.Titulo = peticion.Titulo;
+        solicitud.Descripcion = peticion.Descripcion;
+        solicitud.CategoriaId = categoria.Id;
+        solicitud.Prioridad = peticion.Prioridad;
+
+        var yaCerrada = solicitud.Estado == Estado.Resuelta ||
+                        solicitud.Estado == Estado.Cerrada ||
+                        solicitud.Estado == Estado.Cancelada;
+
+        if (cambioSla && !yaCerrada)
+        {
+            solicitud.FechaLimiteSla = CalculadoraSla.CalcularFechaLimite(
+                solicitud.FechaCreacion, categoria.SlaHoras, peticion.Prioridad);
+        }
+
+        await _db.SaveChangesAsync();
+
+        var dto = await ArmarDetalle(solicitud, actual.TenantId, ahora);
+        return Ok(dto);
+    }
+
     private static IQueryable<Solicitud> Ordenar(IQueryable<Solicitud> consulta, string sort)
     {
         return sort switch

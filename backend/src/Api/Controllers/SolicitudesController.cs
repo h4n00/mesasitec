@@ -136,6 +136,63 @@ public class SolicitudesController : ControllerBase
         return Ok(respuesta);
     }
 
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Detalle(Guid id)
+    {
+        var actual = new UsuarioActual(User);
+        var ahora = DateTime.UtcNow;
+
+        var s = await _db.Solicitudes
+            .FirstOrDefaultAsync(x => x.Id == id && x.TenantId == actual.TenantId);
+
+        // RN-01: si no existe o es de otra organizacion, 404
+        if (s == null)
+            return Errores.NoEncontrado();
+
+        // RN-03: el solicitante solo ve las propias (tambien 404, no 403)
+        if (!actual.VeTodasLasSolicitudes && s.SolicitanteId != actual.Id)
+            return Errores.NoEncontrado();
+
+        var dto = await ArmarDetalle(s, actual.TenantId, ahora);
+        return Ok(dto);
+    }
+
+    private async Task<SolicitudDetalleDto> ArmarDetalle(Solicitud s, Guid tenantId, DateTime ahora)
+    {
+        var categoria = await _db.Categorias.FirstOrDefaultAsync(c => c.Id == s.CategoriaId);
+        var solicitante = await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == s.SolicitanteId);
+        var agente = s.AgenteId.HasValue
+            ? await _db.Usuarios.FirstOrDefaultAsync(u => u.Id == s.AgenteId.Value)
+            : null;
+
+        return new SolicitudDetalleDto
+        {
+            Id = s.Id,
+            Codigo = s.Codigo,
+            Titulo = s.Titulo,
+            Descripcion = s.Descripcion,
+            Estado = s.Estado.ToString(),
+            Prioridad = s.Prioridad.ToString(),
+            Categoria = categoria == null
+                ? new ReferenciaDto()
+                : new ReferenciaDto { Id = categoria.Id, Nombre = categoria.Nombre },
+            Solicitante = solicitante == null
+                ? new ReferenciaDto()
+                : new ReferenciaDto { Id = solicitante.Id, Nombre = solicitante.Nombre },
+            Agente = agente == null
+                ? null
+                : new ReferenciaDto { Id = agente.Id, Nombre = agente.Nombre },
+            FechaCreacion = DateTime.SpecifyKind(s.FechaCreacion, DateTimeKind.Utc),
+            FechaLimiteSla = DateTime.SpecifyKind(s.FechaLimiteSla, DateTimeKind.Utc),
+            FechaResolucion = s.FechaResolucion.HasValue
+                ? DateTime.SpecifyKind(s.FechaResolucion.Value, DateTimeKind.Utc)
+                : null,
+            MotivoResolucion = s.MotivoResolucion,
+            MotivoCancelacion = s.MotivoCancelacion,
+            Vencida = CalculadoraSla.EstaVencida(s.FechaLimiteSla, s.Estado, ahora)
+        };
+    }
+
     private static IQueryable<Solicitud> Ordenar(IQueryable<Solicitud> consulta, string sort)
     {
         return sort switch

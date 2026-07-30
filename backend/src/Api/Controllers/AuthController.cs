@@ -1,10 +1,11 @@
-﻿using Api.Dtos;
+﻿using Api.Comun;
+using Api.Dtos;
 using Aplicacion;
 using Infraestructura;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 
 namespace Api.Controllers;
 
@@ -29,16 +30,9 @@ public class AuthController : ControllerBase
 
         // Mismo error si el correo no existe o si la clave es incorrecta
         if (usuario == null ||
-              !BCrypt.Net.BCrypt.Verify(peticion.Password, usuario.PasswordHash))
+             !BCrypt.Net.BCrypt.Verify(peticion.Password, usuario.PasswordHash))
         {
-            var problema = new ProblemDetails
-            {
-                Status = 401,
-                Title = "Credenciales invalidas"
-            };
-            problema.Extensions["codigo"] = "NO_AUTENTICADO";
-
-            return new ObjectResult(problema) { StatusCode = 401 };
+            return Errores.NoAutenticado();
         }
 
         var tenant = await _db.Tenants.FirstAsync(t => t.Id == usuario.TenantId);

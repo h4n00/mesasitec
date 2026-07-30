@@ -11,8 +11,19 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<MesaSitecDbContext>(options =>
     options.UseSqlite("Data Source=mesasitec.db"));
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.Converters.Add(
+            new System.Text.Json.Serialization.JsonStringEnumConverter());
+    });
+
 builder.Services.AddEndpointsApiExplorer();
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy =
+        System.Text.Json.JsonNamingPolicy.CamelCase;
+});
 
 builder.Services.AddSwaggerGen(options =>
 {
@@ -69,6 +80,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+
 
 // Crea la base de datos automáticamente si no existe
 using (var scope = app.Services.CreateScope())

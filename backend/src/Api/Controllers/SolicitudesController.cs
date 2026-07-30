@@ -136,6 +136,8 @@ public class SolicitudesController : ControllerBase
         return Ok(respuesta);
     }
 
+
+
     [HttpGet("{id}")]
     public async Task<IActionResult> Detalle(Guid id)
     {
@@ -191,6 +193,61 @@ public class SolicitudesController : ControllerBase
             MotivoCancelacion = s.MotivoCancelacion,
             Vencida = CalculadoraSla.EstaVencida(s.FechaLimiteSla, s.Estado, ahora)
         };
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> Crear([FromBody] CrearSolicitudRequest peticion)
+    {
+        var actual = new UsuarioActual(User);
+        var ahora = DateTime.UtcNow;
+
+        if (string.IsNullOrWhiteSpace(peticion.Titulo) ||
+            string.IsNullOrWhiteSpace(peticion.Descripcion))
+            return Errores.Validacion();
+
+        // La categoria debe existir, estar activa y ser de la misma organizacion
+        var categoria = await _db.Categorias.FirstOrDefaultAsync(c =>
+            c.Id == peticion.CategoriaId &&
+            c.TenantId == actual.TenantId &&
+            c.Activo);
+
+        if (categoria == null)
+            return Errores.Validacion();
+
+        var solicitud = new Solicitud
+        {
+            Id = Guid.NewGuid(),
+            TenantId = actual.TenantId,
+            Codigo = await GenerarCodigo(actual.TenantId, ahora.Year),
+            Titulo = peticion.Titulo,
+            Descripcion = peticion.Descripcion,
+            CategoriaId = categoria.Id,
+            Prioridad = peticion.Prioridad,
+            Estado = Estado.Nueva,
+            SolicitanteId = actual.Id,
+            FechaCreacion = ahora,
+            FechaLimiteSla = CalculadoraSla.CalcularFechaLimite(
+                ahora, categoria.SlaHoras, peticion.Prioridad)
+        };
+
+        _db.Solicitudes.Add(solicitud);
+        await _db.SaveChangesAsync();
+
+        var dto = await ArmarDetalle(solicitud, actual.TenantId, ahora);
+
+        return CreatedAtAction(nameof(Detalle), new { id = solicitud.Id }, dto);
+    }
+
+    // RN-07: correlativo independiente por organizacion y por año
+    private async Task<string> GenerarCodigo(Guid tenantId, int anio)
+    {
+        var prefijo = $"SOL-{anio}-";
+
+        var cantidad = await _db.Solicitudes
+            .CountAsync(s => s.TenantId == tenantId && s.Codigo.StartsWith(prefijo));
+
+        var siguiente = cantidad + 1;
+        return prefijo + siguiente.ToString("D5");
     }
 
     private static IQueryable<Solicitud> Ordenar(IQueryable<Solicitud> consulta, string sort)

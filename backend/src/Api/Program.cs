@@ -79,7 +79,20 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
+// Permite que el frontend en 5173 consuma la API
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("frontend", politica =>
+    {
+        politica.WithOrigins("http://localhost:5173")
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
+
+app.UseCors("frontend");
 
 
 

@@ -51,3 +51,25 @@ export async function listarCategorias(): Promise<Categoria[]> {
   const respuesta = await cliente.get<Categoria[]>('/categorias')
   return respuesta.data
 }
+
+export interface GuardarSolicitud {
+  titulo: string
+  descripcion: string
+  categoriaId: string
+  prioridad: Prioridad
+}
+
+export async function crearSolicitud(
+  datos: GuardarSolicitud
+): Promise<SolicitudDetalle> {
+  const respuesta = await cliente.post<SolicitudDetalle>('/solicitudes', datos)
+  return respuesta.data
+}
+
+export async function editarSolicitud(
+  id: string,
+  datos: GuardarSolicitud
+): Promise<SolicitudDetalle> {
+  const respuesta = await cliente.put<SolicitudDetalle>(`/solicitudes/${id}`, datos)
+  return respuesta.data
+}

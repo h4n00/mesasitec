@@ -51,7 +51,9 @@ builder.Services.AddSwaggerGen(options =>
 });
 
 // Configuracion del JWT leida desde appsettings.json
-var jwtSecreto = builder.Configuration["Jwt:Secreto"]!;
+// Prioriza la variable de entorno; el valor de appsettings es solo para desarrollo
+var jwtSecreto = Environment.GetEnvironmentVariable("JWT_SECRETO")
+                 ?? builder.Configuration["Jwt:Secreto"]!;
 var jwtEmisor = builder.Configuration["Jwt:Emisor"]!;
 var jwtAudiencia = builder.Configuration["Jwt:Audiencia"]!;
 var jwtExpira = int.Parse(builder.Configuration["Jwt:ExpiraEnSegundos"]!);

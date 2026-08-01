@@ -5,7 +5,8 @@ import type {
   SolicitudLista,
   SolicitudDetalle,
   Estado,
-  Prioridad
+  Prioridad,
+ Referencia
 } from '../types/api'
 
 export interface FiltrosSolicitudes {
@@ -71,5 +72,26 @@ export async function editarSolicitud(
   datos: GuardarSolicitud
 ): Promise<SolicitudDetalle> {
   const respuesta = await cliente.put<SolicitudDetalle>(`/solicitudes/${id}`, datos)
+  return respuesta.data
+}
+
+export interface DatosTransicion {
+  accion: string
+  agenteId?: string
+  motivo?: string
+}
+
+export async function ejecutarTransicion(
+  id: string,
+  datos: DatosTransicion
+): Promise<SolicitudDetalle> {
+  const respuesta = await cliente.post<SolicitudDetalle>(
+    `/solicitudes/${id}/transiciones`,
+    datos
+  )
+  return respuesta.data
+}
+export async function listarAgentes(): Promise<Referencia[]> {
+  const respuesta = await cliente.get<Referencia[]>('/usuarios/agentes')
   return respuesta.data
 }

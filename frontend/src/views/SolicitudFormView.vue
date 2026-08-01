@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import { useToastStore } from '../stores/toast'
 import { useRoute, useRouter } from 'vue-router'
 import {
   listarCategorias,
@@ -29,6 +30,7 @@ const errorGeneral = ref('')
 
 const cargando = ref(false)
 const guardando = ref(false)
+const toast = useToastStore()
 
 function validar(): boolean {
   errorTitulo.value = ''
@@ -71,6 +73,8 @@ async function guardar(): Promise<void> {
     const resultado = esEdicion.value
       ? await editarSolicitud(id.value as string, datos)
       : await crearSolicitud(datos)
+
+    toast.mostrar(esEdicion.value ? 'Solicitud actualizada' : 'Solicitud creada')
 
     router.push({ name: 'solicitud-detalle', params: { id: resultado.id } })
   } catch {

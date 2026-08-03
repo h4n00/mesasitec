@@ -9,11 +9,14 @@ Dos terminales, desde la raíz del repositorio.
 **Terminal 1 — API**
 
 
+
 cd backend/src/Api
 dotnet run
 
 
+
 **Terminal 2 — Frontend**
+
 
 
 cd frontend
@@ -21,9 +24,10 @@ npm install
 npm run dev
 
 
+
 Abre **http://localhost:5173** y entrar con `admin@norte.test` / `Sitec.2026`.
 
-Listo. La base de datos se crea sola con los datos de prueba.
+La base de datos se crea sola con los datos de prueba.
 
 * Swagger: http://localhost:5080/swagger
 * Health: http://localhost:5080/health
@@ -53,8 +57,10 @@ Para ver el aislamiento entre organizaciones, comparar lo que ve `admin@norte.te
 ## Pruebas
 
 
+
 cd backend
 dotnet test
+
 
 
 8 pruebas unitarias sobre el cálculo de SLA y la máquina de estados.
@@ -62,8 +68,10 @@ dotnet test
 Verificación de tipos del frontend:
 
 
+
 cd frontend
 npx tsc --noEmit
+
 
 
 ## Variables de entorno
@@ -72,8 +80,8 @@ Ver `.env.example`. Ninguna es obligatoria: si no se definen, se usan los valore
 
 |Variable|Para qué sirve|
 |-|-|
-|`JWT\_SECRETO`|Clave de firma de los tokens. Mínimo 32 caracteres.|
-|`SEED\_FECHA\_BASE`|Fecha base de la semilla, en formato ISO 8601 UTC.|
+|`JWT\\\_SECRETO`|Clave de firma de los tokens. Mínimo 32 caracteres.|
+|`SEED\\\_FECHA\\\_BASE`|Fecha base de la semilla, en formato ISO 8601 UTC.|
 
 ## Qué está implementado
 
